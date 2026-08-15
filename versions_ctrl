@@ -1,0 +1,14 @@
+1. update what changes and when you made
+
+as of 15/8/26
+--input gui, index, off design ft, deg C, and placement of elements has to be corrected
+--github collab
+--p vs t zoom in feature, trend lines
+--legend scaling , per point value cursor driven, lbf to newton, degR to C
+--altitude vs thrust, alitude on y axis
+--t4 guessed value, reduce Fg < 1.000
+
+m= density*A*V
+A= pi * d * b , d=200mm fixed
+V from the simulation
+we can get b value
