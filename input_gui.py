@@ -332,7 +332,7 @@ class InputWindow(QMainWindow):
                     raise ValueError
             except (AttributeError, ValueError):
                 raise ValueError(f"Off-design point {row + 1} contains invalid SI data.")
-            points.append({"mach": mach, "alt": altitude_m / METRES_PER_FOOT, "T4": (t4_c + 273.15) / KELVIN_PER_DEGR})
+            points.append({"mach": mach, "alt": altitude_m / METRES_PER_FOOT, "T4": (t4_k + 273.15) / KELVIN_PER_DEGR})
         return points
 
     def update_stopwatch(self):
