@@ -200,7 +200,7 @@ class InputWindow(QMainWindow):
         cycle_form.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         cycle_form.setHorizontalSpacing(16)
         cycle_form.setVerticalSpacing(9)
-        self.t4 = self.spin(550, 2500, 1222.2, 1.0, 1, " K", "Turbine inlet temperature.\nInput in Kelvin.")
+        self.t4 = self.spin(300, 2500, 949.1, 1.0, 1, " °C", "Turbine inlet temperature.\nInput in Celsius.")
         self.pr = self.spin(1.01, 20, 8.00, 0.05, 2, "", "Overall compressor pressure ratio.")
         self.compEff = self.spin(50, 100, 83.0, 0.5, 1, " %", "Isentropic compressor efficiency.")
         self.turbEff = self.spin(50, 100, 86.0, 0.5, 1, " %", "Isentropic turbine efficiency.")
@@ -221,7 +221,7 @@ class InputWindow(QMainWindow):
         layout.addWidget(hint)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Mach", "Altitude (m)", "T4 (K)"])
+        self.table.setHorizontalHeaderLabels(["Mach", "Altitude (m)", "T4 (°C)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
@@ -246,7 +246,7 @@ class InputWindow(QMainWindow):
         # The former ft/degR defaults are shown in SI units for this UI.
         for mach, altitude_m in ((0.05, 0), (0.075, 61), (0.10, 122), (0.15, 183), (0.175, 244),
                                  (0.20, 305), (0.25, 366), (0.30, 427), (0.35, 488), (0.40, 549)):
-            self.add_row(mach, altitude_m, 1222.2)
+            self.add_row(mach, altitude_m, 949.1)
         return panel
 
     def create_status_bar(self):
@@ -294,7 +294,7 @@ class InputWindow(QMainWindow):
         if hasattr(self, "status"):
             self.status.setText(f'<span style="color:{colors[state]}">●</span> Status: {text}')
 
-    def add_row(self, mach=0.0, altitude_m=0.0, t4_k=1222.2):
+    def add_row(self, mach=0.0, altitude_m=0.0, t4_k=949.1):
         row = self.table.rowCount()
         self.table.insertRow(row)
         values = (mach, altitude_m, t4_k)
@@ -315,7 +315,7 @@ class InputWindow(QMainWindow):
             "alt": self.altitude.value() / METRES_PER_FOOT,
             "mach": self.mach.value(),
             "Fn": self.fn.value() / NEWTONS_PER_LBF,
-            "T4": self.t4.value() / KELVIN_PER_DEGR,
+            "T4": (self.t4.value() + 273.15) / KELVIN_PER_DEGR,
             "PR": self.pr.value(),
             "comp_eff": self.compEff.value() / 100.0,
             "turb_eff": self.turbEff.value() / 100.0,
@@ -332,7 +332,7 @@ class InputWindow(QMainWindow):
                     raise ValueError
             except (AttributeError, ValueError):
                 raise ValueError(f"Off-design point {row + 1} contains invalid SI data.")
-            points.append({"mach": mach, "alt": altitude_m / METRES_PER_FOOT, "T4": t4_k / KELVIN_PER_DEGR})
+            points.append({"mach": mach, "alt": altitude_m / METRES_PER_FOOT, "T4": (t4_c + 273.15) / KELVIN_PER_DEGR})
         return points
 
     def update_stopwatch(self):

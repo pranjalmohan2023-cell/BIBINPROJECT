@@ -192,13 +192,6 @@ class MPTurbojet(pyc.MPCycle):
         self.pyc_add_cycle_param('nozz.Cv', 0.99)
 
 
-        # define the off-design conditions we want to run
-        # self.od_pts = ['OD0', 'OD1','OD2','OD3','OD4','OD5','OD6','OD7','OD8','OD9']
-        # self.od_MNs = [0.05, 0.075, 0.1, 0.15,0.175,0.2,0.25,0.3,0.35,0.4]
-        # self.od_alts = [0.0, 200,400,600,800,1000,1200,1400,1600,1800,2000]
-        # #self.od_Fns =[224.0, 210.0]
-        # self.od_T4s = [2200,2200,2200,2200,2200,2200,2200,2200,2200,2200,2200]
-
         od_inputs = self.options["od_inputs"]
 
         self.od_pts = []
@@ -206,13 +199,6 @@ class MPTurbojet(pyc.MPCycle):
         for i in range(len(od_inputs)):
             self.od_pts.append(f"OD{i}")
 
-        # for i,pt in enumerate(self.od_pts):
-        #     self.pyc_add_pnt(pt, Turbojet(design=False))
-        #
-        #     self.set_input_defaults(pt+'.fc.MN', val=self.od_MNs[i])
-        #     self.set_input_defaults(pt+'.fc.alt', self.od_alts[i], units='ft')
-        #     #self.set_input_defaults(pt+'.balance.Fn_target', self.od_Fns[i], units='lbf')
-        #     self.set_input_defaults(pt + '.balance.T4_target',self.od_T4s[i],units='degR')
 
         for i, pt in enumerate(self.od_pts):
             self.pyc_add_pnt(
@@ -253,7 +239,7 @@ def run_engine(design_inputs=None,od_inputs=None):
             "mach": 0.1,
             "Fn": 200.809,
             "T4": 2200,
-            "PR": 8,
+            "PR": 4,
             "comp_eff": 0.83,
             "turb_eff": 0.86
         }
@@ -279,16 +265,6 @@ def run_engine(design_inputs=None,od_inputs=None):
 
     prob.setup(check=False)
 
-    #prob.model.set_order(['DESIGN','OD0','OD1'])
-
-    #Define the design point
-    # prob.set_val('DESIGN.fc.alt', 0, units='ft')
-    # prob.set_val('DESIGN.fc.MN', 0.1)
-    # prob.set_val('DESIGN.balance.Fn_target', 200.809, units='lbf')
-    # prob.set_val('DESIGN.balance.T4_target', 2200.0, units='degR')
-    # prob.set_val('DESIGN.comp.PR', 8)
-    # prob.set_val('DESIGN.comp.eff', 0.83)
-    # prob.set_val('DESIGN.turb.eff', 0.86)
 
     prob.set_val('DESIGN.fc.alt',
                  design_inputs["alt"],
