@@ -28,6 +28,7 @@ class InputWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self._launching_output = False
         self.output = None
         self.elapsed = QElapsedTimer()
         self.timer = QTimer(self)
@@ -46,16 +47,19 @@ class InputWindow(QMainWindow):
                 background: #15171A;
                 color: #E8EAED;
                 font-family: "Segoe UI", Arial, sans-serif;
-                font-size: 11px;
+                font-size: 15px;
+            }
+            QLabel {
+                background: transparent;
             }
             QFrame#header, QFrame#statusBar {
                 background: #1A1D21;
                 border: 1px solid #343A40;
                 border-radius: 8px;
             }
-            QLabel#appTitle { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
-            QLabel#subtitle { color: #9AA0A6; font-size: 11px; }
-            QLabel#sectionHint { color: #9AA0A6; font-size: 10px; }
+            QLabel#appTitle { font-size: 25px; font-weight: 700; letter-spacing: 0.5px; }
+            QLabel#subtitle { color: #9AA0A6; font-size: 15px; }
+            QLabel#sectionHint { color: #9AA0A6; font-size: 12.5px; }
             QLabel#statusIndicator { font-weight: 700; }
             QGroupBox {
                 background: #1D2024;
@@ -72,7 +76,7 @@ class InputWindow(QMainWindow):
                 padding: 0 5px;
                 color: #E8EAED;
             }
-            QLabel#subsection { color: #9AA0A6; font-size: 11px; font-weight: 700; padding-top: 5px; }
+            QLabel#subsection { color: #9AA0A6; font-size: 15px; font-weight: 700; padding-top: 5px; }
             QDoubleSpinBox {
                 min-height: 30px;
                 padding: 2px 8px;
@@ -201,7 +205,7 @@ class InputWindow(QMainWindow):
         cycle_form.setHorizontalSpacing(16)
         cycle_form.setVerticalSpacing(9)
         self.t4 = self.spin(300, 2500, 949.1, 1.0, 1, " °C", "Turbine inlet temperature.\nInput in Celsius.")
-        self.pr = self.spin(1.01, 20, 8.00, 0.05, 2, "", "Overall compressor pressure ratio.")
+        self.pr = self.spin(1.01, 20, 4.00, 0.05, 2, "", "Overall compressor pressure ratio.")
         self.compEff = self.spin(50, 100, 83.0, 0.5, 1, " %", "Isentropic compressor efficiency.")
         self.turbEff = self.spin(50, 100, 86.0, 0.5, 1, " %", "Isentropic turbine efficiency.")
         cycle_form.addRow("Turbine Inlet Temperature", self.t4)
@@ -223,7 +227,10 @@ class InputWindow(QMainWindow):
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["Mach", "Altitude (m)", "T4 (°C)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setVisible(True)
+        self.table.verticalHeader().setDefaultSectionSize(32)
+        self.table.verticalHeader().setMinimumWidth(35)
+        self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setMinimumWidth(540)
@@ -297,17 +304,34 @@ class InputWindow(QMainWindow):
     def add_row(self, mach=0.0, altitude_m=0.0, t4_k=949.1):
         row = self.table.rowCount()
         self.table.insertRow(row)
+
+        # Point index starts from 0
+        index_item = QTableWidgetItem(str(row))
+        index_item.setTextAlignment(Qt.AlignCenter)
+        self.table.setVerticalHeaderItem(row, index_item)
+
         values = (mach, altitude_m, t4_k)
+
         for column, value in enumerate(values):
-            item = QTableWidgetItem(f"{value:.3f}" if column == 0 else f"{value:.1f}")
+            item = QTableWidgetItem(
+                f"{value:.3f}" if column == 0 else f"{value:.1f}"
+            )
             item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table.setItem(row, column, item)
+
         self.table.setRowHeight(row, 32)
 
     def delete_row(self):
         row = self.table.currentRow()
+
         if row >= 0:
             self.table.removeRow(row)
+
+            # Re-index remaining points from 0
+            for i in range(self.table.rowCount()):
+                index_item = QTableWidgetItem(str(i))
+                index_item.setTextAlignment(Qt.AlignCenter)
+                self.table.setVerticalHeaderItem(i, index_item)
 
     def build_design_backend_inputs(self):
         """Convert SI display values to the units expected by the unchanged backend."""
@@ -375,14 +399,28 @@ class InputWindow(QMainWindow):
         self.runBtn.setText("▶  RUN ENGINE")
         self.set_status("CONVERGED")
         self.output = EngineWindow(prob, od_pts)
-        self.output.show()
-        self.close()
+        self.output.showMaximized()
 
+        self._launching_output = True
+        self.output.raise_()
+        self.output.activateWindow()
     def show_validation_error(self, message, title="Invalid Input"):
         QMessageBox.warning(self, title, message)
 
     def closeEvent(self, event):
-        reply = QMessageBox.question(self, "Exit", "Exit Turbojet Designer?", QMessageBox.Yes | QMessageBox.No)
+
+        if self._launching_output:
+            event.accept()
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Exit",
+            "Exit Turbojet Designer?",
+            QMessageBox.Yes |
+            QMessageBox.No
+        )
+
         if reply == QMessageBox.Yes:
             event.accept()
         else:
