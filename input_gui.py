@@ -5,6 +5,7 @@ conversion is deliberately isolated in ``build_*_backend_inputs`` below.
 """
 
 import sys
+import os
 
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPalette
@@ -30,6 +31,7 @@ class InputWindow(QMainWindow):
         super().__init__()
         self._launching_output = False
         self.output = None
+        self.last_setup_file = "last_setup.txt"
         self.elapsed = QElapsedTimer()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_stopwatch)
@@ -225,7 +227,7 @@ class InputWindow(QMainWindow):
         layout.addWidget(hint)
 
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Mach", "Altitude (m)", "T4 (°C)"])
+        self.table.setHorizontalHeaderLabels(["Mach", "Altitude (ft)", "T4 (°C)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(True)
         self.table.verticalHeader().setDefaultSectionSize(32)
@@ -240,20 +242,44 @@ class InputWindow(QMainWindow):
         controls = QHBoxLayout()
         self.addBtn = QPushButton("＋ Add Point")
         self.delBtn = QPushButton("− Delete Point")
+        self.duplicateBtn = QPushButton("⧉ Duplicate Point")
         self.delBtn.setObjectName("deleteButton")
         self.addBtn.setToolTip("Add an off-design operating point.")
         self.delBtn.setToolTip("Remove the selected operating point.")
         controls.addWidget(self.addBtn)
+        controls.addWidget(self.duplicateBtn)
         controls.addWidget(self.delBtn)
         controls.addStretch()
         layout.addLayout(controls)
         self.addBtn.clicked.connect(self.add_row)
+        self.duplicateBtn.clicked.connect(self.duplicate_row)
         self.delBtn.clicked.connect(self.delete_row)
 
         # The former ft/degR defaults are shown in SI units for this UI.
-        for mach, altitude_m in ((0.05, 0), (0.075, 61), (0.10, 122), (0.15, 183), (0.175, 244),
-                                 (0.20, 305), (0.25, 366), (0.30, 427), (0.35, 488), (0.40, 549)):
-            self.add_row(mach, altitude_m, 949.1)
+        if os.path.exists(self.last_setup_file):
+            with open(self.last_setup_file, "r") as f:
+                for line in f:
+                    values = line.strip().split(",")
+                    if len(values) == 3:
+                        self.add_row(
+                            float(values[0]),
+                            float(values[1]),
+                            float(values[2])
+                        )
+        else:
+            for mach, altitude_m in (
+                    (0.05, 0),
+                    (0.075, 61),
+                    (0.10, 122),
+                    (0.15, 183),
+                    (0.175, 244),
+                    (0.20, 305),
+                    (0.25, 366),
+                    (0.30, 427),
+                    (0.35, 488),
+                    (0.40, 549)
+            ):
+                self.add_row(mach, altitude_m, 949.1)
         return panel
 
     def create_status_bar(self):
@@ -321,6 +347,70 @@ class InputWindow(QMainWindow):
 
         self.table.setRowHeight(row, 32)
 
+    def duplicate_row(self):
+        row = self.table.currentRow()
+
+        if row < 0:
+            self.show_validation_error(
+                "Select an off-design point to duplicate.",
+                "No Point Selected"
+            )
+            return
+
+        values = []
+
+        for column in range(self.table.columnCount()):
+            item = self.table.item(row, column)
+
+            if item is None:
+                return
+
+            values.append(item.text())
+
+        try:
+            mach = float(values[0])
+            altitude = float(values[1])
+            t4 = float(values[2])
+        except ValueError:
+            self.show_validation_error(
+                "The selected point contains invalid data.",
+                "Invalid Point"
+            )
+            return
+
+        # Insert immediately below the selected point
+        new_row = row + 1
+        self.table.insertRow(new_row)
+
+        # Re-create the index
+        index_item = QTableWidgetItem(str(new_row))
+        index_item.setTextAlignment(Qt.AlignCenter)
+        self.table.setVerticalHeaderItem(new_row, index_item)
+
+        new_values = (mach, altitude, t4)
+
+        for column, value in enumerate(new_values):
+            item = QTableWidgetItem(
+                f"{value:.3f}" if column == 0 else f"{value:.1f}"
+            )
+
+            item.setTextAlignment(
+                Qt.AlignRight | Qt.AlignVCenter
+            )
+
+            self.table.setItem(new_row, column, item)
+
+        self.table.setRowHeight(new_row, 32)
+
+        # Re-index everything after insertion
+        for i in range(self.table.rowCount()):
+            index_item = QTableWidgetItem(str(i))
+            index_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setVerticalHeaderItem(i, index_item)
+
+        self.table.selectRow(new_row)
+
+        self.save_last_setup()
     def delete_row(self):
         row = self.table.currentRow()
 
@@ -350,13 +440,17 @@ class InputWindow(QMainWindow):
         for row in range(self.table.rowCount()):
             try:
                 mach = float(self.table.item(row, 0).text())
-                altitude_m = float(self.table.item(row, 1).text())
+                altitude_ft = float(self.table.item(row, 1).text())
                 t4_k = float(self.table.item(row, 2).text())
-                if not 0 <= mach <= 2 or altitude_m < 0 or t4_k <= 0:
+                if not 0 <= mach <= 2 or altitude_ft < 0 or t4_k <= 0:
                     raise ValueError
             except (AttributeError, ValueError):
                 raise ValueError(f"Off-design point {row + 1} contains invalid SI data.")
-            points.append({"mach": mach, "alt": altitude_m / METRES_PER_FOOT, "T4": (t4_k + 273.15) / KELVIN_PER_DEGR})
+            points.append({
+                "mach": mach,
+                "alt": altitude_ft,
+                "T4": (t4_k + 273.15) / KELVIN_PER_DEGR
+            })
         return points
 
     def update_stopwatch(self):
@@ -383,6 +477,7 @@ class InputWindow(QMainWindow):
         self.elapsed.start()
         self.timer.start(100)
         try:
+            self.save_setup()
             prob, od_pts = run_engine(design_inputs, od_inputs)
         except Exception as error:
             self.timer.stop()
@@ -425,6 +520,15 @@ class InputWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def save_setup(self):
+        with open(self.last_setup_file, "w") as f:
+            for row in range(self.table.rowCount()):
+                values = [
+                    self.table.item(row, col).text()
+                    for col in range(3)
+                ]
+                f.write(",".join(values) + "\n")
 
 
 if __name__ == "__main__":
