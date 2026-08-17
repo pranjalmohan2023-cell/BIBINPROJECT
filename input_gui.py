@@ -484,7 +484,7 @@ class InputWindow(QMainWindow):
             self.runBtn.setEnabled(True)
             self.runBtn.setText("▶  RUN ENGINE")
             self.set_status("FAILED")
-            QMessageBox.critical(self, "Solver Error", str(error))
+            QMessageBox.critical(self, "Solver Error", str(error)) #dsfs
             return
 
         self.timer.stop()
