@@ -1835,7 +1835,19 @@ class AnalysisWindow(QMainWindow):
                         f"{point}.perf.Fn",
                         "lbf"
                     ),
+                "gross_thrust_lbf":
+                    scalar(
+                        self.prob,
+                        f"{point}.perf.Fg",
+                        "lbf"
+                    ),
 
+                "tsfc":
+                    scalar(
+                        self.prob,
+                        f"{point}.perf.TSFC",
+                        "kg/N/s"
+                    ),
                 "mass_flow_kg_s":
                     scalar(
                         self.prob,
@@ -1967,6 +1979,20 @@ class AnalysisWindow(QMainWindow):
         tabs.addTab(
             self.make_station_plot(),
             "6. Stations / Altitude"
+        )
+        tabs.addTab(
+            self.make_t4_mass_flow_plot(),
+            "7. T4 vs Mass Flow"
+        )
+
+        tabs.addTab(
+            self.make_t4_tsfc_plot(),
+            "8. T4 vs TSFC"
+        )
+
+        tabs.addTab(
+            self.make_t4_thrust_plot(),
+            "9. T4 vs Thrust"
         )
 
         # --------------------------------------------------------
@@ -3060,6 +3086,263 @@ class AnalysisWindow(QMainWindow):
         )
 
     # ============================================================
+    # 7. T4 vs MASS FLOW
+    # ============================================================
+
+    def make_t4_mass_flow_plot(self):
+
+        fig = self.figure(
+            "T4 versus Mass Flow Rate"
+        )
+
+        ax = fig.add_subplot(111)
+
+        x = np.array([
+            self.degr_to_c(r["t4_degR"])
+            for r in self.rows
+        ])
+
+        y = np.array([
+            r["mass_flow_kg_s"]
+            for r in self.rows
+        ])
+
+        line, = ax.plot(
+            x[1:],
+            y[1:],
+            "o-",
+            linewidth=1.6,
+            markersize=5
+        )
+
+        hover_specs = [{
+            "artist": line,
+
+            "texts": [
+                f"Point: {r['point']}\n"
+                f"T4: {self.degr_to_c(r['t4_degR']):.2f} °C\n"
+                f"Mass flow: {r['mass_flow_kg_s']:.5f} kg/s\n"
+                f"Altitude: {r['altitude_ft']:.0f} ft\n"
+                f"Shaft speed: {r['rpm']:.0f} rpm"
+
+                for r in self.rows
+            ]
+        }]
+
+        self.add_design_offdesign_markers(
+            ax,
+            x,
+            y,
+            colors=line.get_color(),
+            size=70
+        )
+
+        ax.set(
+            xlabel="T4 / Turbine inlet temperature (°C)",
+            ylabel="Mass flow rate (kg/s)"
+        )
+
+        ax.grid(True, alpha=0.3)
+
+        ax.margins(
+            x=0.08,
+            y=0.08
+        )
+
+        return self.canvas(
+            fig,
+            hover_specs
+        )
+
+    # ============================================================
+    # 8. T4 vs TSFC
+    # ============================================================
+
+    def make_t4_tsfc_plot(self):
+
+        fig = self.figure(
+            "T4 versus Thrust Specific Fuel Consumption"
+        )
+
+        ax = fig.add_subplot(111)
+
+        x = np.array([
+            self.degr_to_c(r["t4_degR"])
+            for r in self.rows
+        ])
+
+        y = np.array([
+            r["tsfc"]
+            for r in self.rows
+        ])
+
+        line, = ax.plot(
+            x[1:],
+            y[1:],
+            "o-",
+            linewidth=1.6,
+            markersize=5
+        )
+
+        hover_specs = [{
+            "artist": line,
+
+            "texts": [
+                f"Point: {r['point']}\n"
+                f"T4: {self.degr_to_c(r['t4_degR']):.2f} °C\n"
+                f"TSFC: {r['tsfc']:.6e} kg/N/s\n"
+                f"Net thrust: "
+                f"{self.lbf_to_kn(r['thrust_lbf']):.3f} kN\n"
+                f"Altitude: {r['altitude_ft']:.0f} ft"
+
+                for r in self.rows
+            ]
+        }]
+
+        self.add_design_offdesign_markers(
+            ax,
+            x,
+            y,
+            colors=line.get_color(),
+            size=70
+        )
+
+        ax.set(
+            xlabel="T4 / Turbine inlet temperature (°C)",
+            ylabel="TSFC (kg/N/s)"
+        )
+
+        ax.grid(True, alpha=0.3)
+
+        ax.margins(
+            x=0.08,
+            y=0.08
+        )
+
+        return self.canvas(
+            fig,
+            hover_specs
+        )
+
+    # ============================================================
+    # 9. T4 vs GROSS AND NET THRUST
+    # ============================================================
+
+    def make_t4_thrust_plot(self):
+
+        fig = self.figure(
+            "T4 versus Gross and Net Thrust"
+        )
+
+        ax = fig.add_subplot(111)
+
+        x = np.array([
+            self.degr_to_c(r["t4_degR"])
+            for r in self.rows
+        ])
+
+        gross = np.array([
+            self.lbf_to_kn(r["gross_thrust_lbf"])
+            for r in self.rows
+        ])
+
+        net = np.array([
+            self.lbf_to_kn(r["thrust_lbf"])
+            for r in self.rows
+        ])
+
+        gross_line, = ax.plot(
+            x[1:],
+            gross[1:],
+            "o-",
+            linewidth=1.6,
+            markersize=5,
+            label="Gross thrust"
+        )
+
+        net_line, = ax.plot(
+            x[1:],
+            net[1:],
+            "s-",
+            linewidth=1.6,
+            markersize=5,
+            label="Net thrust"
+        )
+
+        hover_specs = [
+            {
+                "artist": gross_line,
+
+                "texts": [
+                    f"Point: {r['point']}\n"
+                    f"T4: {self.degr_to_c(r['t4_degR']):.2f} °C\n"
+                    f"Gross thrust: "
+                    f"{self.lbf_to_kn(r['gross_thrust_lbf']):.3f} kN\n"
+                    f"Net thrust: "
+                    f"{self.lbf_to_kn(r['thrust_lbf']):.3f} kN\n"
+                    f"Mass flow: "
+                    f"{r['mass_flow_kg_s']:.5f} kg/s"
+
+                    for r in self.rows
+                ]
+            },
+
+            {
+                "artist": net_line,
+
+                "texts": [
+                    f"Point: {r['point']}\n"
+                    f"T4: {self.degr_to_c(r['t4_degR']):.2f} °C\n"
+                    f"Gross thrust: "
+                    f"{self.lbf_to_kn(r['gross_thrust_lbf']):.3f} kN\n"
+                    f"Net thrust: "
+                    f"{self.lbf_to_kn(r['thrust_lbf']):.3f} kN\n"
+                    f"Mass flow: "
+                    f"{r['mass_flow_kg_s']:.5f} kg/s"
+
+                    for r in self.rows
+                ]
+            }
+        ]
+
+        # DESIGN = star
+        # OFF-DESIGN = circle
+
+        self.add_design_offdesign_markers(
+            ax,
+            x,
+            gross,
+            colors=gross_line.get_color(),
+            size=65
+        )
+
+        self.add_design_offdesign_markers(
+            ax,
+            x,
+            net,
+            colors=net_line.get_color(),
+            size=65
+        )
+
+        ax.set(
+            xlabel="T4 / Turbine inlet temperature (°C)",
+            ylabel="Thrust (kN)"
+        )
+
+        ax.grid(True, alpha=0.3)
+
+        ax.margins(
+            x=0.08,
+            y=0.08
+        )
+
+        ax.legend()
+
+        return self.canvas(
+            fig,
+            hover_specs
+        )
+    # ============================================================
     # CSV EXPORT
     # ============================================================
 
@@ -3087,6 +3370,9 @@ class AnalysisWindow(QMainWindow):
             "freestream_mach",
             "rpm",
             "thrust_lbf",
+            "mass_flow_kg_s",
+            "t4_degR",
+            "tsfc",
             "mass_flow_kg_s",
             "t4_degR",
             "inlet_area_m2",
