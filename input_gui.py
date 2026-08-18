@@ -31,7 +31,7 @@ class InputWindow(QMainWindow):
         super().__init__()
         self._launching_output = False
         self.output = None
-        self.last_setup_file = "last_setup4.txt" #last_setup1.txt #setup_file
+        self.last_setup_file = "last_setup1.txt" #last_setup1.txt #setup_file
         self.elapsed = QElapsedTimer()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_stopwatch)
